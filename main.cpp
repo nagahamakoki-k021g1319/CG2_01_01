@@ -365,9 +365,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// サンプルマスクの設定
 	pipelineDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK; // 標準設定
 
-	// ラスタライザの設定
+	//////////////////////////////////////////////////////////////
+	//-------------------ラスタライザの設定------------------------//
+	/////////////////////////////////////////////////////////////
+
 	pipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // カリングしない
-	pipelineDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME; // ワイヤーフレーム
+
+	//塗りつぶしかワイヤーのどっちかしか使えない
+	pipelineDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID; // ポリゴン内塗りつぶし
+	//pipelineDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME; // ワイヤーフレーム
 	pipelineDesc.RasterizerState.DepthClipEnable = true; // 深度クリッピングを有効に
 
 	// ブレンドステート
@@ -473,8 +479,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		// ビューポート設定コマンド
 		D3D12_VIEWPORT viewport{};
-		viewport.Width = 1280;   //よこ 最大1280
-		viewport.Height = 720;  //たて 最大720
+		viewport.Width = 600;   //よこ 最大1280
+		viewport.Height = window_height;  //たて 最大720
 		viewport.TopLeftX = 0;  //左上X
 		viewport.TopLeftY = 0;  //左上Y
 		viewport.MinDepth = 0.0f; //最小頻度
