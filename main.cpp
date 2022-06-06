@@ -69,7 +69,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//ウィンドウオブジェクトの生成
 	HWND hwnd = CreateWindow(w.lpszClassName,//クラス名指定
-		_T("LE2B_05_ナガハマ_コウキ_AL3"),		//タイトルバーの文字
+		_T("LE2B_05_ナガハマ_コウキ_AL3"),	 	//タイトルバーの文字
 		WS_OVERLAPPEDWINDOW,			//タイトルバーと境界線があるウィンドウ
 		CW_USEDEFAULT,					//表示x座標はOSにお任せ
 		CW_USEDEFAULT,					//表示y座標はOSにお任せ
