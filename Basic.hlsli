@@ -14,3 +14,9 @@ struct VSOutput
     // uv’l
     float2 uv  :TEXCOORD;
 };
+
+cbuffer ConstBufferDataTransform : register(b1)
+{
+    matrix mat;
+};
+
