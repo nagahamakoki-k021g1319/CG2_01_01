@@ -1,10 +1,13 @@
-#include "Basic.hlsli"
-
-VSOutput main(float4 pos : POSITION, float2 uv : TEXCOORD)
+cbuffer ConstBufferDataMaterialPos : register(b0)
 {
-    VSOutput output; // ピクセルシェーダーに渡す値
+
+    VSOutput output; // ﾆ痴ﾆ誰ﾆ短ﾆ停ｹﾆ歎ﾆ巽ﾂーﾆ胆ﾂー窶堙俄從窶堋ｷ窶冤
     output.svpos = mul(mat, pos);
     output.uv = uv;
     return output;
 }
 
+float4 main(float4 pos : POSITION) : SV_POSITION
+{
+	return pos;
+}
