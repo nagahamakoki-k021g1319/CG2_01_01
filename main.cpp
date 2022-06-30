@@ -575,6 +575,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	matTrans = XMMatrixTranslation(-50.0f, 0.0f, 0.0f);
 	matWorld *= matTrans;
+
 	{
 		// ヒープ設定
 		D3D12_HEAP_PROPERTIES cbHeapProp{};
@@ -628,7 +629,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//ビュー変換行列
 		XMMATRIX matView;
-		XMFLOAT3 eye(30, 0, -100);
+		XMFLOAT3 eye(0, 0, -100);
 		XMFLOAT3 target(0, 0, 0);
 		XMFLOAT3 up(0, 1, 0);
 		matView = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
