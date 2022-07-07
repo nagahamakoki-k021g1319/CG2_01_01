@@ -199,9 +199,51 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc{};
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;			//レンダーターゲットビュー
 	rtvHeapDesc.NumDescriptors = swapChainDesc.BufferCount;		//裏表の2つ
-
 	//デスクリプタヒープの生成
 	device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap));
+
+	//深度バッファのリソース設定
+	D3D12_RESOURCE_DESC depthResourceDesc{};
+	depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	depthResourceDesc.Width = window_width;
+	depthResourceDesc.Height = window_height;
+	depthResourceDesc.DepthOrArraySize = 1;
+	depthResourceDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	depthResourceDesc.SampleDesc.Count = 1;
+	depthResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	//深度用ヒーププロパティ
+	D3D12_HEAP_PROPERTIES depthHeapProp{};
+	depthHeapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	//深度値のクリア設定
+	D3D12_CLEAR_VALUE depthClearValue{};
+	depthClearValue.DepthStencil.Depth = 1.0f;
+	depthClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+	//深度バッファのリソース生成
+	ID3D12Resource* depthBuff = nullptr;
+	result = device->CreateCommittedResource(
+		&depthHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&depthResourceDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthClearValue,
+		IID_PPV_ARGS(&depthBuff)
+		);
+	//深度ビュー用デスクリプタヒープ作成
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	ID3D12DescriptorHeap* dsvHeap = nullptr;
+	result = device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap));
+	//深度ビュー作成
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	device->CreateDepthStencilView(
+		depthBuff,
+		&dsvDesc,
+		dsvHeap->GetCPUDescriptorHandleForHeapStart()
+	);
+
 
 	//バックバッファ
 	std::vector<ID3D12Resource*>backBuffers;
@@ -259,22 +301,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//---------------描画初期化処理 ここから----------------//
 	/////////////////////////////////////////////////////
 
-	//// 横方向ピクセル数
-	//const size_t textureWidth = 256;
-	//// 縦方向ピクセル数
-	//const size_t textureHeight = 256;
-	//// 配列の要素数
-	//const size_t imageDataCount = textureWidth * textureHeight;
-	//// 画像イメージデータ配列
-	//XMFLOAT4* imageData = new XMFLOAT4[imageDataCount]; // ※必ず後で解放する
-
-	//// 全ピクセルの色を初期化
-	//for (size_t i = 0; i < imageDataCount; i++) {
-	//	imageData[i].x = 0.0f;    // R
-	//	imageData[i].y = 1.0f;    // G
-	//	imageData[i].z = 0.0f;    // B
-	//	imageData[i].w = 1.0f;    // A
-	//}
 	TexMetadata metadata{};
 	ScratchImage scratchImg{};
 	// WICテクスチャのロード
@@ -385,15 +411,42 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	struct Vertex
 	{
 		XMFLOAT3 pos; // xyz座標
+		XMFLOAT3 normal; //法線ベクトル
 		XMFLOAT2 uv;  // uv座標
 	};
 	// 頂点データ
 	Vertex vertices[] = {
 		//  x        y     z       u     v
-		{{	-50.0f, -50.0f, 0.0f}, {0.0f, 1.0f}}, // 左下
-		{{	-50.0f,	50.0f, 0.0f}, {0.0f, 0.0f}}, // 左上
-		{{   50.0f, -50.0f, 0.0f}, {1.0f, 1.0f}}, // 右下
-		{{   50.0f,	50.0f, 0.0f}, {1.0f, 0.0f}}, // 右上
+		 //前
+		{{-5.0f, -5.0f, -5.0f},{} ,{0.0f, 1.0f}}, // 左下
+		{{-5.0f, 5.0f, -5.0f},{} , {0.0f, 0.0f}}, // 左上
+		{{5.0f, -5.0f, -5.0f},{} , {1.0f, 1.0f}}, // 右下
+		{{5.0f, 5.0f, -5.0f}, {} ,{1.0f, 0.0f}}, // 右上
+		//後ろ
+		{{-5.0f, -5.0f, 5.0f}, {} ,{0.0f, 1.0f}}, // 左下
+		{{-5.0f, 5.0f, 5.0f},{} , {0.0f, 0.0f}}, // 左上
+		{{5.0f, -5.0f, 5.0f}, {} ,{1.0f, 1.0f}}, // 右下
+		{{5.0f, 5.0f, 5.0f},{} , {1.0f, 0.0f}}, // 右上
+		//左
+		{{-5.0f, -5.0f, -5.0f},{} , {0.0f, 1.0f}}, // 左下
+		{{-5.0f, -5.0f, 5.0f},{} , {0.0f, 0.0f}}, // 左上
+		{{-5.0f, 5.0f, -5.0f},{} , {1.0f, 1.0f}}, // 右下
+		{{-5.0f, 5.0f, 5.0f}, {} ,{1.0f, 0.0f}}, // 右上
+		//右
+		{{5.0f, -5.0f, -5.0f},{} , {0.0f, 1.0f}}, // 左下
+		{{5.0f, -5.0f, 5.0f},{} , {0.0f, 0.0f}}, // 左上
+		{{5.0f, 5.0f, -5.0f}, {} ,{1.0f, 1.0f}}, // 右下
+		{{5.0f, 5.0f, 5.0f},{} , {1.0f, 0.0f}}, // 右上
+		//下
+		{{-5.0f, -5.0f, -5.0f},{} , {0.0f, 1.0f}}, // 左下
+		{{-5.0f, -5.0f, 5.0f}, {} ,{0.0f, 0.0f}}, // 左上
+		{{5.0f, -5.0f, -5.0f}, {} ,{1.0f, 1.0f}}, // 右下
+		{{5.0f, -5.0f, 5.0f}, {} ,{1.0f, 0.0f}}, // 右上
+		//上
+		{{-5.0f, 5.0f, -5.0f}, {} ,{0.0f, 1.0f}}, // 左下
+		{{-5.0f, 5.0f, 5.0f}, {} ,{0.0f, 0.0f}}, // 左上
+		{{5.0f, 5.0f, -5.0f}, {} ,{1.0f, 1.0f}}, // 右下
+		{{5.0f, 5.0f, 5.0f},{} , {1.0f, 0.0f}}, // 右上
 	};
 
 	//// インデックスデータ
@@ -405,8 +458,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// インデックスデータ
 	unsigned short indices[] = {
+		//前
 		0, 1, 2, // 三角形1つ目
-		1, 2, 3, // 三角形2つ目
+		2, 1, 3, // 三角形2つ目
+		//後
+		6, 5, 4, // 三角形3つ目
+		7, 5, 6, // 三角形4つ目
+		//左
+		8, 9, 10, // 三角形5つ目
+		11, 10, 9, // 三角形6つ目
+		//右
+		14, 13, 12, // 三角形7つ目
+		13, 14, 15, // 三角形8つ目
+		//下
+		16, 17, 18, // 三角形9つ目
+		17, 18, 19, // 三角形10つ目
+		//上
+		20, 21, 22, // 三角形11つ目
+		21, 22, 23, // 三角形12つ目
 	};
 
 
@@ -668,7 +737,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(result));
 
 	// 値を書き込むと自動的に転送される
-	constMapMaterial->color = XMFLOAT4(1, 0, 0, 0.5f);              // RGBAで半透明の赤
+	constMapMaterial->color = XMFLOAT4(1, 1, 1, 1);              // RGBA
 
 	// ルートパラメータの設定
 	D3D12_ROOT_PARAMETER rootParams[3] = {};
@@ -700,11 +769,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	samplerDesc.MinLOD = 0.0f;                                              //ミップマップ最小値
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;           //ピクセルシェーダからのみ使用可能
-
-
-
-
-
 
 	ID3DBlob* vsBlob = nullptr; // 頂点シェーダオブジェクト
 	ID3DBlob* psBlob = nullptr; // ピクセルシェーダオブジェクト
@@ -741,6 +805,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, // デバッグ用設定
 		0,
 		&psBlob, &errorBlob);
+	
 	// エラーなら
 	if (FAILED(result)) {
 		// errorBlobからエラー内容をstring型にコピー
@@ -762,6 +827,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 		},
+		{ //法線ベクトル(1行で書いたほうが見やすい)
+		  "NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,
+		  D3D12_APPEND_ALIGNED_ELEMENT,
+		  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0
+
+		},
 		{ // uv座標(1行で書いたほうが見やすい)
 			"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
@@ -772,6 +843,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// グラフィックスパイプライン設定
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineDesc{};
+	
+	//デプスステンシルステートの設定
+	pipelineDesc.DepthStencilState.DepthEnable = true;
+	pipelineDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	pipelineDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	pipelineDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 	// シェーダーの設定
 	pipelineDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
@@ -792,7 +869,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//-------------------ラスタライザの設定------------------------//
 	/////////////////////////////////////////////////////////////
 
-	pipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // カリングしない
+	//pipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // カリングしない
+	pipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+
 
 	//塗りつぶしかワイヤーのどっちかしか使えない
 	pipelineDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID; // ポリゴン内塗りつぶし
@@ -919,11 +998,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//レンダーターゲットビューのハンドルを取得
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		rtvHandle.ptr += bbIndex * device->GetDescriptorHandleIncrementSize(rtvHeapDesc.Type);
-		commandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
+		/*commandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);*/
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvHeap->GetCPUDescriptorHandleForHeapStart();
+		commandList->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
 
 		//3.画面クリア			R	  G	   B	A
 		FLOAT clearColor[] = { 0.1f,0.25f,0.5f,0.0f };//青っぽい色
 		commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+		commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+		
 		if (key[DIK_SPACE] )     // スペースキーが押されていたら
 		{
 			//画面クリアカラーの数値を書き換える
