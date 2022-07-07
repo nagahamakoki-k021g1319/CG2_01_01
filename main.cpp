@@ -408,14 +408,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//};
 
 	// インデックスデータ
+	// インデックスデータ
 	unsigned short indices[] = {
 		//前
 		0, 1, 2, // 三角形1つ目
+		3, 2, 1, // 三角形2つ目
 
-		2, 1, 3, // 三角形2つ目
 		//後
 		6, 5, 4, // 三角形3つ目
-		7, 5, 6, // 三角形4つ目
+		5, 6, 7, // 三角形4つ目
 		//左
 		8, 9, 10, // 三角形5つ目
 		11, 10, 9, // 三角形6つ目
@@ -423,11 +424,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		14, 13, 12, // 三角形7つ目
 		13, 14, 15, // 三角形8つ目
 		//下
-		16, 17, 18, // 三角形9つ目
+		18, 17, 16, // 三角形9つ目
 		17, 18, 19, // 三角形10つ目
 		//上
 		20, 21, 22, // 三角形11つ目
-		21, 22, 23, // 三角形12つ目
+
+		23, 22, 21, // 三角形12つ目
 
 	};
 
@@ -511,6 +513,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ibView.BufferLocation = indexBuff->GetGPUVirtualAddress();
 	ibView.Format = DXGI_FORMAT_R16_UINT;
 	ibView.SizeInBytes = sizeIB;
+
+	//法線計算
+	for (int i = 0; i < _countof(indices) / 3; i++)
+	{//三角形1つごとに計算していく
+		//三角形のインデックスを取り出して一時的な変数に入れる
+		unsigned short indices_0 = indices[i * 3 + 0];
+		unsigned short indices_1 = indices[i * 3 + 1];
+		unsigned short indices_2 = indices[i * 3 + 2];
+		//三角形を構成する頂点座標をベクトルに代入
+		XMVECTOR p0 = XMLoadFloat3(&vertices[indices_0].pos);
+		XMVECTOR p1 = XMLoadFloat3(&vertices[indices_1].pos);
+		XMVECTOR p2 = XMLoadFloat3(&vertices[indices_2].pos);
+		//p0→p1ベクトル,p0→p2ベクトルを計算 (ベクトルの減算)
+		XMVECTOR v1 = XMVectorSubtract(p1, p0);
+		XMVECTOR v2 = XMVectorSubtract(p2, p0);
+		//外積は両方から垂直なベクトル
+		XMVECTOR normal = XMVector3Cross(v1, v2);
+		//正規化(長さを1にする)
+		normal = XMVector3Normalize(normal);
+		//求めた法線を頂点データに代入
+		XMStoreFloat3(&vertices[indices_0].normal,normal);
+		XMStoreFloat3(&vertices[indices_1].normal, normal);
+		XMStoreFloat3(&vertices[indices_2].normal, normal);
+	}
 
 
 	// GPU上のバッファに対応した仮想メモリ(メインメモリ上)を取得
