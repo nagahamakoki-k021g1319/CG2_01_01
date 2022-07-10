@@ -749,6 +749,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		);
 
 
+
 		//ビュー変換行列
 		XMMATRIX matView;
 		XMFLOAT3 eye(0, 0, -100);
