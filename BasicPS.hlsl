@@ -1,7 +1,11 @@
-#include "Basic.hlsli"
+cbuffer ConstBufferDataMaterial : register(b0)
+{
+	float4 color; // F(RGBA)
+};
 
-Texture2D<float4> tex : register(t0);  	// 0�ԃX���b�g�ɐݒ肳�ꂽ�e�N�X�`��
-SamplerState smp : register(s0);      	// 0�ԃX���b�g�ɐݒ肳�ꂽ�T���v���[
+
+Texture2D<float4> tex : register(t0);  	// 0”ÔƒXƒƒbƒg‚ÉÝ’è‚³‚ê‚½ƒeƒNƒXƒ`ƒƒ
+SamplerState smp : register(s0);      	// 0”ÔƒXƒƒbƒg‚ÉÝ’è‚³‚ê‚½ƒTƒ“ƒvƒ‰[
 
 float4 main(VSOutput input) : SV_TARGET{
 
