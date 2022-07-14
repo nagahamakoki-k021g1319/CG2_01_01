@@ -426,8 +426,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 読み込んだディフューズテクスチャをSRGBとして扱う
 	metadata.format = MakeSRGB(metadata.format);
 
-
-
+	//2枚目用の別の変数を用意
+	TexMetadata metadata2{};
+	ScratchImage scratchImg2{};
+	// WICテクスチャのロード
+	result = LoadFromWICFile(
+		L"Resources/reimu.png",   //「Resources」フォルダの「texture.png」
+		WIC_FLAGS_NONE,
+		&metadata2, scratchImg2);
+	ScratchImage mipChain2{};
+	// ミップマップ生成
+	result = GenerateMipMaps(
+		scratchImg2.GetImages(), scratchImg2.GetImageCount(), scratchImg2.GetMetadata(),
+		TEX_FILTER_DEFAULT, 0, mipChain2);
+	if (SUCCEEDED(result)) {
+		scratchImg2 = std::move(mipChain2);
+		metadata2 = scratchImg2.GetMetadata();
+	}
+	// 読み込んだディフューズテクスチャをSRGBとして扱う
+	metadata2.format = MakeSRGB(metadata2.format);
 
 	// ヒープ設定
 	D3D12_HEAP_PROPERTIES textureHeapProp{};
@@ -451,7 +468,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	textureResourceDesc.MipLevels = (UINT16)metadata.mipLevels;
 	textureResourceDesc.SampleDesc.Count = 1;
 
-
+	D3D12_RESOURCE_DESC textureResourceDesc2{};
+	textureResourceDesc2.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	textureResourceDesc2.Format = metadata2.format;
+	textureResourceDesc2.Width = metadata2.width;
+	textureResourceDesc2.Height = (UINT)metadata2.height;
+	textureResourceDesc2.DepthOrArraySize = (UINT16)metadata2.arraySize;
+	textureResourceDesc2.MipLevels = (UINT16)metadata2.mipLevels;
+	textureResourceDesc2.SampleDesc.Count = 1;
 
 	// テクスチャバッファの生成
 	ID3D12Resource* texBuff = nullptr;
@@ -462,6 +486,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&texBuff));
+
+	// テクスチャバッファの生成2
+	ID3D12Resource* texBuff2 = nullptr;
+	result = device->CreateCommittedResource(
+		&textureHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&textureResourceDesc2,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&texBuff2));
 
 	// テクスチャバッファにデータ転送
 	//result = texBuff->WriteToSubresource(
@@ -485,7 +519,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		);
 		assert(SUCCEEDED(result));
 	}
-
+	// 全ミップマップについて
+	for (size_t i = 0; i < metadata2.mipLevels; i++) {
+		// ミップマップレベルを指定してイメージを取得
+		const Image* img2 = scratchImg2.GetImage(i, 0, 0);
+		// テクスチャバッファにデータ転送
+		result = texBuff2->WriteToSubresource(
+			(UINT)i,
+			nullptr,              // 全領域へコピー
+			img2->pixels,          // 元データアドレス
+			(UINT)img2->rowPitch,  // 1ラインサイズ
+			(UINT)img2->slicePitch // 1枚サイズ
+		);
+		assert(SUCCEEDED(result));
+	}
 
 
 	// SRVの最大個数
@@ -502,8 +549,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	result = device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&srvHeap));
 	assert(SUCCEEDED(result));
 
-	//SRVヒープの先頭ハンドルを取得
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = srvHeap->GetCPUDescriptorHandleForHeapStart();
+	
+
+
 
 	//// 頂点データ
 //XMFLOAT3 vertices[] = {
@@ -710,7 +758,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	/*vbView.StrideInBytes = sizeof(XMFLOAT3);*/
 	vbView.StrideInBytes = sizeof(vertices[0]);
 
-
+	//
+	// 
+	// 
+	// 
+	// 
+	// 
+	// 
+	// 
+	//SRVヒープの先頭ハンドルを取得
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = srvHeap->GetCPUDescriptorHandleForHeapStart();
 	// シェーダリソースビュー設定
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = resDesc.Format;
@@ -718,10 +775,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = resDesc.MipLevels;
 
-
-
 	// ハンドルの指す位置にシェーダーリソースビュー作成
 	device->CreateShaderResourceView(texBuff, &srvDesc, srvHandle);
+
+	//1つハンドルを進める
+	UINT incrementSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	srvHandle.ptr += incrementSize;
+
+	//シェーダーリソースビュー設定
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
+	srvDesc2.Format = textureResourceDesc2.Format;
+	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc2.Texture2D.MipLevels = textureResourceDesc2.MipLevels;
+
+	// ハンドルの指す位置にシェーダーリソースビュー作成
+	device->CreateShaderResourceView(texBuff2, &srvDesc2, srvHandle);
 
 	// CBV,SRV,UAVの1個分のサイズを取得
 	UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -745,9 +814,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	
 	
-	//
-	//
-	//
+
 	//定数バッファ(0)
 	ID3D12Resource* constBuffTransform0 = nullptr;
 	ConstBufferDataTransform* constMapTransform0 = nullptr;
@@ -755,10 +822,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ID3D12Resource* constBuffTransform1 = nullptr;
 	ConstBufferDataTransform* constMapTransform1 = nullptr;
 
-	//
-	// 
-	// 
-	// 
+	
 	////スケーリング倍率
 	//XMFLOAT3 scale = { 1.0f,1.0f,1.0f };
 	////回転角
@@ -1327,6 +1391,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// SRVヒープの先頭にあるSRVをルートパラメータ1番に設定
 		commandList->SetGraphicsRootDescriptorTable(1, srvGpuHandle);
 		
+		//2枚目を指し示すようにしたSRVのハンドルをルートパラメータ1番に設定
+		srvGpuHandle.ptr += incrementSize;
+		commandList->SetGraphicsRootDescriptorTable(1, srvGpuHandle);
+
 		// インデックスバッファビューの設定コマンド
 		commandList->IASetIndexBuffer(&ibView);
 
