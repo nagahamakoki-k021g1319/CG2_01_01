@@ -1,33 +1,7 @@
 ﻿#pragma region 読み込むヘッダー
 
 #define DIRECTINPUT_VERSION 0x0800 //DirectInputのバージョン指定
-#include<dinput.h>
-#include<d3dcompiler.h>
-#pragma comment(lib,"d3dcompiler.lib")
-#include<Windows.h>
-#include <tchar.h>
-#include<iostream>
-#include<d3d12.h>
-#include<dxgi1_6.h>
-#include<cassert>
-#pragma comment(lib,"d3d12.lib")
-#pragma comment(lib,"dxgi.lib")
-#pragma comment(lib,"dinput8.lib")
-#pragma comment(lib,"dxguid.lib")
-#include <vector>
-#include <string>
-#include<DirectXMath.h>
-#include <math.h>
-#include <DirectXTex.h>
-#include<wrl.h>
-
-
-using namespace DirectX;
-using namespace std;
-using namespace Microsoft::WRL;
-
-#pragma endregion
-const float PI = 3.141592f;
+#include "libone.h"
 
 // 定数バッファ用データ構造体（マテリアル）
 struct ConstBufferDataMaterial {
@@ -54,11 +28,9 @@ struct Object3d
 	XMFLOAT3 rotation = { 0,0,0 };
 	XMFLOAT3 position = { 0,0,0 };
 	//ワールド変換行列
-	XMMATRIX matWorld;
+	XMMATRIX matWorld{};
 	//親オブジェクトへのポインタ
 	Object3d* parent = nullptr;
-
-	
 };
 
 //3Dオブジェクト初期化
@@ -158,7 +130,7 @@ LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 }
 #pragma endregion
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 #pragma region WindowsAPI初期化処理
 
@@ -217,13 +189,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #endif
 
 	HRESULT result;
-	ComPtr < ID3D12Device> device;
-	ComPtr < IDXGIFactory6> dxgiFactory;
-	ComPtr < IDXGISwapChain4> swapChain;
-	ComPtr < ID3D12CommandAllocator> commandAllocator;
-	ComPtr < ID3D12GraphicsCommandList> commandList;
-	ComPtr < ID3D12CommandQueue> commandQueue;
-	ComPtr < ID3D12DescriptorHeap> rtvHeap;
+	ComPtr <ID3D12Device> device;
+	ComPtr <IDXGIFactory6> dxgiFactory;
+	ComPtr <IDXGISwapChain4> swapChain;
+	ComPtr <ID3D12CommandAllocator> commandAllocator;
+	ComPtr <ID3D12GraphicsCommandList> commandList;
+	ComPtr <ID3D12CommandQueue> commandQueue;
+	ComPtr <ID3D12DescriptorHeap> rtvHeap;
 
 	//DXGIファクトリーの生成
 	result = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
@@ -560,7 +532,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^//
 	// 設定を元にSRV用デスクリプタヒープを生成
-    ID3D12DescriptorHeap* srvHeap = nullptr;
+    ComPtr<ID3D12DescriptorHeap> srvHeap;
 	result = device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&srvHeap));
 	assert(SUCCEEDED(result));
 
@@ -1399,7 +1371,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// 定数バッファビュー(CBV)の設定コマンド
 		commandList->SetGraphicsRootConstantBufferView(0, constBuffMaterial->GetGPUVirtualAddress());
 		// SRVヒープの設定コマンド
-		commandList->SetDescriptorHeaps(1, &srvHeap);
+		commandList->SetDescriptorHeaps(1, srvHeap.GetAddressOf());
 		// SRVヒープの先頭ハンドルを取得（SRVを指しているはず）
 		D3D12_GPU_DESCRIPTOR_HANDLE srvGpuHandle = srvHeap->GetGPUDescriptorHandleForHeapStart();
 		// SRVヒープの先頭にあるSRVをルートパラメータ1番に設定
@@ -1459,8 +1431,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		if (fence->GetCompletedValue() != fenceVal) {
 			HANDLE event = CreateEvent(nullptr, false, false, nullptr);
 			fence->SetEventOnCompletion(fenceVal, event);
-			WaitForSingleObject(event, INFINITE);
-			CloseHandle(event);
+			if (event != 0) {
+				WaitForSingleObject(event, INFINITE);
+				CloseHandle(event);
+			}
 		}
 
 		//キューをクリア

@@ -26,4 +26,9 @@
   <ItemGroup>
     <None Include="Basic.hlsli" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="libone.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
